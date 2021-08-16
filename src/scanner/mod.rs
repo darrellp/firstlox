@@ -1,5 +1,5 @@
 use self::token::Token;
-use crate::{ascii::AsciiStr, lox_error::LoxError};
+use crate::{ascii::AsciiStr, lox_error::LoxError, lox_error::LoxErrorList};
 pub mod token;
 pub mod token_type;
 
@@ -15,8 +15,6 @@ pub struct Scanner<'a> {
 #[allow(unused)]
 impl<'a> Scanner<'a> {
     pub fn new(program: &'a String) -> Result<Scanner<'a>, LoxError> {
-        // Probably should check that we only have Ascii here since we
-        // assume that later.
         let test = AsciiStr::from_ascii(program);
         let ascii_str = match test {
             Err(_) => return Err(LoxError::new_text_only("Program should be in ascii")),
@@ -27,23 +25,7 @@ impl<'a> Scanner<'a> {
             current: 0,
             line: 1,
             source: ascii_str,
-            tokens: vec![
-                Token::new(
-                    &token_type::TokenType::String("Darrell".to_string()),
-                    &"Darrell".to_string(),
-                    1,
-                ),
-                Token::new(
-                    &token_type::TokenType::String("Alan".to_string()),
-                    &"Alan".to_string(),
-                    1,
-                ),
-                Token::new(
-                    &token_type::TokenType::String("Plank".to_string()),
-                    &"Plank".to_string(),
-                    1,
-                ),
-            ],
+            tokens: vec![],
         };
         Ok(scanner)
     }
@@ -68,20 +50,33 @@ impl<'a> Scanner<'a> {
         self.current >= self.source.len()
     }
 
-    pub fn scan_tokens(&mut self) -> &Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Result<(), LoxErrorList> {
+        let mut errors = LoxErrorList::new();
+
         while !self.is_at_end() {
             self.start = self.current;
-            self.scan_token();
+            match self.scan_token() {
+                Err(v) => {
+                    let mut l = v;
+                    errors.append(l)
+                }
+                Ok(_) => {}
+            }
         }
         self.add_token(Token::new(
             &token_type::TokenType::Eof,
             &"".to_string(),
             self.line,
         ));
-        &self.tokens
+
+        if errors.len() == 0 {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 
-    pub fn scan_token(&mut self) -> () {
+    pub fn scan_token(&mut self) -> Result<(), LoxErrorList> {
         let c = self.advance();
         match c {
             '(' => self.add_token_type(&token_type::TokenType::LeftParen),
@@ -94,8 +89,14 @@ impl<'a> Scanner<'a> {
             '+' => self.add_token_type(&token_type::TokenType::Plus),
             ';' => self.add_token_type(&token_type::TokenType::Semicolon),
             '*' => self.add_token_type(&token_type::TokenType::Star),
-            _ => (),
-        }
+            _ => {
+                return Err(LoxErrorList::single(LoxError::new(
+                    self.line,
+                    "Unexpected character.".to_string(),
+                )))
+            }
+        };
+        Ok(())
     }
 
     pub fn advance(&mut self) -> char {

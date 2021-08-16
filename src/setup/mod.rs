@@ -1,4 +1,5 @@
-use crate::lox_error;
+use crate::lox_error::LoxError;
+use crate::lox_error::LoxErrorList;
 use crate::scanner;
 use std::env;
 use std::fs;
@@ -6,48 +7,40 @@ use std::io::{self, stdout, BufRead, Write};
 
 pub fn compile() {
     let args: Vec<String> = env::args().collect();
-    let mut result: Result<(), Vec<lox_error::LoxError>> = Ok(());
 
     if args.len() > 2 {
-        lox_error::LoxError::new_text_only("Syntax: lox [file]").report();
+        LoxError::new_text_only("Syntax: lox [file]").report();
     } else if args.len() == 2 {
-        result = run_file(&args[1])
+        run_file(&args[1])
     } else {
-        result = run_prompt();
-    }
-    match result {
-        Err(v) => {
-            for error in v {
-                error.report();
-            }
-        }
-        Ok(_) => (),
+        run_prompt();
     }
 }
 
-fn run_file(file: &String) -> Result<(), Vec<lox_error::LoxError>> {
+fn run_file(file: &String) {
     let program_val = fs::read_to_string(file);
     match program_val {
         Err(_) => {
-            let error = lox_error::LoxError::new_text_only(&format!("Couldn't read {}", file));
-            return Err(vec![error]);
+            let error = LoxError::new_text_only(&format!("Couldn't read {}", file));
+            error.report()
         }
-        Ok(program) => run(&program),
+        Ok(program) => match run(&program) {
+            Err(erlst) => erlst.report(),
+            Ok(_) => {}
+        },
     }
 }
 
-fn run_prompt() -> Result<(), Vec<lox_error::LoxError>> {
+fn run_prompt() {
     let reader = io::stdin();
     println!("^c to end...\n");
     loop {
         print!("> ");
         match stdout().flush() {
             Err(err) => {
-                let error = lox_error::LoxError::new_text_only(&format!(
-                    "Flushing problem: {:?}",
-                    err.to_string()
-                ));
-                return Err(vec![error]);
+                let error =
+                    LoxError::new_text_only(&format!("Flushing problem: {:?}", err.to_string()));
+                error.report()
             }
             Ok(_) => (),
         }
@@ -56,33 +49,30 @@ fn run_prompt() -> Result<(), Vec<lox_error::LoxError>> {
         match read_stat {
             Ok(0) => break,
             Err(err) => {
-                let error = lox_error::LoxError::new_text_only(&format!(
-                    "Input problem: {:?}",
-                    err.to_string()
-                ));
-                return Err(vec![error]);
+                let error =
+                    LoxError::new_text_only(&format!("Input problem: {:?}", err.to_string()));
+                error.report();
+                continue;
             }
-            Ok(_) => (),
+            Ok(_) => line = line.trim().to_string(),
         };
         match run(&line) {
-            Err(v) => {
-                return Err(v);
-            }
-            Ok(_) => continue,
+            Err(v) => v.report(),
+            Ok(_) => {}
         }
     }
-    Ok(())
 }
 
-fn run(program: &String) -> Result<(), Vec<lox_error::LoxError>> {
+fn run(program: &String) -> Result<(), LoxErrorList> {
     let scanner_test = scanner::Scanner::new(&program);
-    let scanner = match scanner_test {
-        Err(e) => return Err(vec![e]),
+    let mut scanner = match scanner_test {
+        Err(e) => return Err(LoxErrorList::single(e)),
         Ok(s) => s,
     };
 
+    let ret = scanner.scan_tokens();
     for token in scanner.get_tokens() {
         println!("{}", token)
     }
-    Ok(())
+    ret
 }
