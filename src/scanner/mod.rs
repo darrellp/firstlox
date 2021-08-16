@@ -1,4 +1,5 @@
 use self::token::Token;
+use self::token_type::TokenType;
 use crate::{ascii::AsciiStr, lox_error::LoxError, lox_error::LoxErrorList};
 pub mod token;
 pub mod token_type;
@@ -36,7 +37,7 @@ impl<'a> Scanner<'a> {
         self.tokens.push(token);
     }
 
-    pub fn add_token_type(&mut self, tt: &token_type::TokenType) {
+    pub fn add_token_type(&mut self, tt: &TokenType) {
         self.add_token(Token::new(
             tt,
             &token_type::tt_to_string(tt).to_string(),
@@ -63,26 +64,22 @@ impl<'a> Scanner<'a> {
             self.start = self.current;
             self.scan_token();
         }
-        self.add_token(Token::new(
-            &token_type::TokenType::Eof,
-            &"".to_string(),
-            self.line,
-        ));
+        self.add_token(Token::new(&TokenType::Eof, &"".to_string(), self.line));
     }
 
     pub fn scan_token(&mut self) {
         let c = self.advance();
         match c {
-            '(' => self.add_token_type(&token_type::TokenType::LeftParen),
-            ')' => self.add_token_type(&token_type::TokenType::RightParen),
-            '{' => self.add_token_type(&token_type::TokenType::LeftBrace),
-            '}' => self.add_token_type(&token_type::TokenType::RightBrace),
-            ',' => self.add_token_type(&token_type::TokenType::Comma),
-            '.' => self.add_token_type(&token_type::TokenType::Dot),
-            '-' => self.add_token_type(&token_type::TokenType::Minus),
-            '+' => self.add_token_type(&token_type::TokenType::Plus),
-            ';' => self.add_token_type(&token_type::TokenType::Semicolon),
-            '*' => self.add_token_type(&token_type::TokenType::Star),
+            '(' => self.add_token_type(&TokenType::LeftParen),
+            ')' => self.add_token_type(&TokenType::RightParen),
+            '{' => self.add_token_type(&TokenType::LeftBrace),
+            '}' => self.add_token_type(&TokenType::RightBrace),
+            ',' => self.add_token_type(&TokenType::Comma),
+            '.' => self.add_token_type(&TokenType::Dot),
+            '-' => self.add_token_type(&TokenType::Minus),
+            '+' => self.add_token_type(&TokenType::Plus),
+            ';' => self.add_token_type(&TokenType::Semicolon),
+            '*' => self.add_token_type(&TokenType::Star),
             _ => {
                 self.errors.push(LoxError::new(
                     self.line,
