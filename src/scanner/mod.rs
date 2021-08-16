@@ -112,6 +112,15 @@ impl<'a> Scanner<'a> {
                 };
                 self.add_token_type(tt);
             }
+            '/' => {
+                if self.match_ch('/') {
+                    while self.peek() != '\n' && !self.is_at_end() {
+                        self.advance();
+                    }
+                } else {
+                    self.add_token_type(&TokenType::Slash);
+                }
+            }
             _ => {
                 self.errors.push(LoxError::new(
                     self.line,
@@ -137,6 +146,14 @@ impl<'a> Scanner<'a> {
         } else {
             self.current += 1;
             true
+        }
+    }
+
+    fn peek(&mut self) -> char {
+        if self.is_at_end() {
+            '\0'
+        } else {
+            self.source[self.current].as_char()
         }
     }
 }
