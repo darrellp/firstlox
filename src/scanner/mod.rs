@@ -80,6 +80,38 @@ impl<'a> Scanner<'a> {
             '+' => self.add_token_type(&TokenType::Plus),
             ';' => self.add_token_type(&TokenType::Semicolon),
             '*' => self.add_token_type(&TokenType::Star),
+            '!' => {
+                let tt = if self.match_ch('=') {
+                    &TokenType::BangEqual
+                } else {
+                    &TokenType::Bang
+                };
+                self.add_token_type(tt);
+            }
+            '=' => {
+                let tt = if self.match_ch('=') {
+                    &TokenType::EqualEqual
+                } else {
+                    &TokenType::Equal
+                };
+                self.add_token_type(tt);
+            }
+            '<' => {
+                let tt = if self.match_ch('=') {
+                    &TokenType::LessEqual
+                } else {
+                    &TokenType::Less
+                };
+                self.add_token_type(tt);
+            }
+            '>' => {
+                let tt = if self.match_ch('=') {
+                    &TokenType::GreaterEqual
+                } else {
+                    &TokenType::Greater
+                };
+                self.add_token_type(tt);
+            }
             _ => {
                 self.errors.push(LoxError::new(
                     self.line,
