@@ -133,12 +133,33 @@ impl<'a> Scanner<'a> {
 
             // Everything else
             _ => {
-                self.errors.push(LoxError::new(
-                    self.line,
-                    "Unexpected character.".to_string(),
-                ));
+                if Self::is_id_char(c) {
+                    self.scan_identifier();
+                } else {
+                    self.errors.push(LoxError::new(
+                        self.line,
+                        "Unexpected character.".to_string(),
+                    ));
+                }
             }
         };
+    }
+
+    fn scan_identifier(&mut self) {
+        while Self::is_id_char(self.peek()) {
+            self.advance();
+        }
+        let text = &self.source[self.start..self.current].to_string();
+        let tt = match TokenType::to_keyword(&text[..]) {
+            None => TokenType::Identifier(text.to_string()),
+            Some(v) => v.clone(),
+        };
+        let token = Token::new(&tt, &text.to_string(), self.line);
+        self.add_token(token);
+    }
+
+    fn is_id_char(c: char) -> bool {
+        c.is_alphanumeric() || c == '_'
     }
 
     fn scan_string(&mut self) {

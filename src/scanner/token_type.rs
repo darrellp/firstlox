@@ -136,6 +136,14 @@ impl TokenType {
     pub fn to_stringslice(&self) -> &str {
         MAP_TYPE_TO_STRING[self]
     }
+
+    pub fn to_keyword(text: &str) -> Option<TokenType> {
+        if text != "eof" && MAP_STRING_TO_TYPE.contains_key(text) {
+            Some(MAP_STRING_TO_TYPE[text].clone())
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for TokenType {
