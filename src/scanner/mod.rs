@@ -38,11 +38,7 @@ impl<'a> Scanner<'a> {
     }
 
     pub fn add_token_type(&mut self, tt: &TokenType) {
-        self.add_token(Token::new(
-            tt,
-            &token_type::tt_to_string(tt).to_string(),
-            self.line,
-        ))
+        self.add_token(Token::new(tt, &tt.to_stringslice().to_string(), self.line))
     }
 
     pub fn get_tokens(&self) -> &Vec<Token> {
@@ -130,31 +126,10 @@ impl<'a> Scanner<'a> {
             '\n' => self.line += 1,
 
             // Strings
-            '"' => {
-                while self.peek() != '"' && !self.is_at_end() {
-                    if self.peek() == '\n' {
-                        self.line += 1
-                    }
-                    self.advance();
-                }
+            '"' => self.scan_string(),
 
-                if self.is_at_end() {
-                    self.errors
-                        .push(LoxError::new_text_only("Unterminated string."));
-                    return;
-                }
-
-                // Terminating double quote
-                self.advance();
-
-                let text = &self.source[self.start + 1..self.current - 1].to_string();
-                let token = Token::new(
-                    &TokenType::String(text.clone()),
-                    &format!("{}{}{}", '"', text, '"'),
-                    self.line,
-                );
-                self.add_token(token)
-            }
+            // Numbers
+            '0'..='9' => self.scan_number(c),
 
             // Everything else
             _ => {
@@ -164,6 +139,50 @@ impl<'a> Scanner<'a> {
                 ));
             }
         };
+    }
+
+    fn scan_string(&mut self) {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            self.errors
+                .push(LoxError::new_text_only("Unterminated string."));
+            return;
+        }
+
+        // Terminating double quote
+        self.advance();
+
+        let text = &self.source[self.start + 1..self.current - 1].to_string();
+        let token = Token::new(
+            &TokenType::String(text.clone()),
+            &format!("{}{}{}", '"', text, '"'),
+            self.line,
+        );
+        self.add_token(token)
+    }
+
+    fn scan_number(&mut self, init: char) {
+        while self.peek().is_digit(10) {
+            self.advance();
+        }
+
+        if self.peek() == '.' && self.peek_next().is_digit(10) {
+            //consume the decimal point
+            self.advance();
+
+            while self.peek().is_digit(10) {
+                self.advance();
+            }
+        }
+        let text = self.source[self.start..self.current].to_string();
+        let token = Token::new(&TokenType::Number(text.clone()), &text, self.line);
+        self.add_token(token);
     }
 
     fn advance(&mut self) -> char {
@@ -190,6 +209,14 @@ impl<'a> Scanner<'a> {
             '\0'
         } else {
             self.source[self.current].as_char()
+        }
+    }
+
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.len() {
+            '\0'
+        } else {
+            self.source[self.current + 1].as_char()
         }
     }
 }

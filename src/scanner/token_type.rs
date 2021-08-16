@@ -30,7 +30,10 @@ pub enum TokenType {
 
     // Literals
     String(String),
-    Number(i32),
+    // We store the string for the float in Number - converting to an f32
+    // causes TokenType to be unhashable which means we can't create our
+    // hash tables below.
+    Number(String),
     Identifier(String),
 
     // Keywords
@@ -117,8 +120,22 @@ lazy_static! {
 }
 
 #[allow(dead_code)]
-pub fn tt_to_string(tt: &TokenType) -> &str {
-    MAP_TYPE_TO_STRING[tt]
+impl TokenType {
+    // We have to handle numeric value specially since including an f32 as an associated
+    // value in the enum renders it unhashable.
+    pub fn num_value(&self) -> f32 {
+        match self {
+            Self::Number(text) => text.parse::<f32>().unwrap(),
+            _ => {
+                assert!(false, "Trying to retrieve num value from non-num token");
+                0.0
+            }
+        }
+    }
+
+    pub fn to_stringslice(&self) -> &str {
+        MAP_TYPE_TO_STRING[self]
+    }
 }
 
 impl fmt::Display for TokenType {
