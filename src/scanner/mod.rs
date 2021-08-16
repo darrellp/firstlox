@@ -70,6 +70,7 @@ impl<'a> Scanner<'a> {
     pub fn scan_token(&mut self) {
         let c = self.advance();
         match c {
+            // unambiguous single characters
             '(' => self.add_token_type(&TokenType::LeftParen),
             ')' => self.add_token_type(&TokenType::RightParen),
             '{' => self.add_token_type(&TokenType::LeftBrace),
@@ -80,6 +81,8 @@ impl<'a> Scanner<'a> {
             '+' => self.add_token_type(&TokenType::Plus),
             ';' => self.add_token_type(&TokenType::Semicolon),
             '*' => self.add_token_type(&TokenType::Star),
+
+            // Two letter combos ending with '='
             '!' => {
                 let tt = if self.match_ch('=') {
                     &TokenType::BangEqual
@@ -121,6 +124,39 @@ impl<'a> Scanner<'a> {
                     self.add_token_type(&TokenType::Slash);
                 }
             }
+
+            // White Space
+            ' ' | '\r' | '\t' => {}
+            '\n' => self.line += 1,
+
+            // Strings
+            '"' => {
+                while self.peek() != '"' && !self.is_at_end() {
+                    if self.peek() == '\n' {
+                        self.line += 1
+                    }
+                    self.advance();
+                }
+
+                if self.is_at_end() {
+                    self.errors
+                        .push(LoxError::new_text_only("Unterminated string."));
+                    return;
+                }
+
+                // Terminating double quote
+                self.advance();
+
+                let text = &self.source[self.start + 1..self.current - 1].to_string();
+                let token = Token::new(
+                    &TokenType::String(text.clone()),
+                    &format!("{}{}{}", '"', text, '"'),
+                    self.line,
+                );
+                self.add_token(token)
+            }
+
+            // Everything else
             _ => {
                 self.errors.push(LoxError::new(
                     self.line,
