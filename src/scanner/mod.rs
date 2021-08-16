@@ -92,9 +92,22 @@ impl<'a> Scanner<'a> {
         };
     }
 
-    pub fn advance(&mut self) -> char {
+    fn advance(&mut self) -> char {
         let old_index = self.current;
         self.current += 1;
         self.source[old_index].as_char()
+    }
+
+    fn match_ch(&mut self, expected: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+        let ch = self.source[self.current].as_char();
+        if (ch != expected) {
+            false
+        } else {
+            self.current += 1;
+            true
+        }
     }
 }
