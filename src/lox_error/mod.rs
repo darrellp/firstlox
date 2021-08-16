@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct LoxError {
     line_number: Option<usize>,
     text: String,
@@ -30,10 +31,12 @@ impl LoxError {
     }
 }
 
+#[derive(Clone)]
 pub struct LoxErrorList {
     errors: Vec<LoxError>,
 }
 
+#[allow(unused)]
 impl LoxErrorList {
     pub fn new() -> Self {
         LoxErrorList { errors: vec![] }
@@ -41,6 +44,10 @@ impl LoxErrorList {
 
     pub fn single(err: LoxError) -> Self {
         LoxErrorList { errors: vec![err] }
+    }
+
+    pub fn push(&mut self, error: LoxError) {
+        self.errors.push(error);
     }
 
     pub fn append(&mut self, mut elst: LoxErrorList) {

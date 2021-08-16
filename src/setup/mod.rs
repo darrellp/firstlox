@@ -24,10 +24,9 @@ fn run_file(file: &String) {
             let error = LoxError::new_text_only(&format!("Couldn't read {}", file));
             error.report()
         }
-        Ok(program) => match run(&program) {
-            Err(erlst) => erlst.report(),
-            Ok(_) => {}
-        },
+        Ok(program) => {
+            run(&program).report();
+        }
     }
 }
 
@@ -56,23 +55,23 @@ fn run_prompt() {
             }
             Ok(_) => line = line.trim().to_string(),
         };
-        match run(&line) {
-            Err(v) => v.report(),
-            Ok(_) => {}
-        }
+        run(&line).report()
     }
 }
 
-fn run(program: &String) -> Result<(), LoxErrorList> {
+// run() should take care of all running (duh).  The only thing it's callers get is
+// a list of the errors.  The buck stops here.
+fn run(program: &String) -> LoxErrorList {
     let scanner_test = scanner::Scanner::new(&program);
     let mut scanner = match scanner_test {
-        Err(e) => return Err(LoxErrorList::single(e)),
+        Err(e) => return LoxErrorList::single(e.clone()),
         Ok(s) => s,
     };
 
-    let ret = scanner.scan_tokens();
+    scanner.scan_tokens();
+
     for token in scanner.get_tokens() {
         println!("{}", token)
     }
-    ret
+    scanner.get_errors()
 }

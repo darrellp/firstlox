@@ -9,6 +9,7 @@ pub struct Scanner<'a> {
     line: usize,
 
     tokens: Vec<Token>,
+    errors: LoxErrorList,
     source: &'a AsciiStr,
 }
 
@@ -26,6 +27,7 @@ impl<'a> Scanner<'a> {
             line: 1,
             source: ascii_str,
             tokens: vec![],
+            errors: LoxErrorList::new(),
         };
         Ok(scanner)
     }
@@ -46,37 +48,29 @@ impl<'a> Scanner<'a> {
         &self.tokens
     }
 
+    pub fn get_errors(&self) -> LoxErrorList {
+        self.errors.clone()
+    }
+
     pub fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
 
-    pub fn scan_tokens(&mut self) -> Result<(), LoxErrorList> {
+    pub fn scan_tokens(&mut self) {
         let mut errors = LoxErrorList::new();
 
         while !self.is_at_end() {
             self.start = self.current;
-            match self.scan_token() {
-                Err(v) => {
-                    let mut l = v;
-                    errors.append(l)
-                }
-                Ok(_) => {}
-            }
+            self.scan_token();
         }
         self.add_token(Token::new(
             &token_type::TokenType::Eof,
             &"".to_string(),
             self.line,
         ));
-
-        if errors.len() == 0 {
-            Ok(())
-        } else {
-            Err(errors)
-        }
     }
 
-    pub fn scan_token(&mut self) -> Result<(), LoxErrorList> {
+    pub fn scan_token(&mut self) {
         let c = self.advance();
         match c {
             '(' => self.add_token_type(&token_type::TokenType::LeftParen),
@@ -90,13 +84,12 @@ impl<'a> Scanner<'a> {
             ';' => self.add_token_type(&token_type::TokenType::Semicolon),
             '*' => self.add_token_type(&token_type::TokenType::Star),
             _ => {
-                return Err(LoxErrorList::single(LoxError::new(
+                self.errors.push(LoxError::new(
                     self.line,
                     "Unexpected character.".to_string(),
-                )))
+                ));
             }
         };
-        Ok(())
     }
 
     pub fn advance(&mut self) -> char {
