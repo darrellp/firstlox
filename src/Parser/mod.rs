@@ -1,21 +1,7 @@
-/// Produces fields for parser productions
-///
-/// # Examples
-///
-/// build_struct!(TestStruct : usize left, char operator, usize right);
-///
-/// should produce:
-///
-/// struct TestStruct {
-///     left: usize,
-///     operator: char,
-///     right: usize,
-/// }
-/// impl TestStruct {
-///     pub fn new( left: usize, operator: char, right: usize) -> Self {
-///         TestStruct { left, operator, right }
-///     }
-/// }
+use crate::scanner::token::Token;
+use crate::scanner::token_type::TokenType;
+
+/// Produces visitor structs for parser productions
 macro_rules! build_struct {
     ($struct_name:ident : $($type:ident $name:ident),*) => (
         #[allow(unused)]
@@ -72,18 +58,11 @@ macro_rules! build_structs {
     };
 }
 
-build_structs! {
-    binary : usize left, char operator, usize right;
-    unary : char operator, usize right;
-}
+pub struct expr {}
 
-#[test]
-fn construct_mult() {
-    let a = binary::new(1, '+', 2);
-    let b = unary::new('-', 10);
-    assert_eq!(1, a.left);
-    assert_eq!('+', a.operator);
-    assert_eq!(2, a.right);
-    assert_eq!('-', b.operator);
-    assert_eq!(10, b.right);
+build_structs! {
+    binary : expr left, Token operator, expr right;
+    grouping : expr expression;
+    literal : TokenType value;
+    unary : Token operator, expr right;
 }
