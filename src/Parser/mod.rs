@@ -1,6 +1,7 @@
 use crate::scanner::token::Token;
 use crate::scanner::token_type::TokenType;
 
+#[allow(unused)]
 pub enum ParseReturn {
     PP(String),
     AST,
@@ -15,14 +16,14 @@ macro_rules! build_struct {
     ($struct_name:ident : $($type:ident $name:ident),*) => (
         #[allow(unused)]
         #[allow(non_camel_case_types)]
-        pub struct $struct_name<'a> {
+        pub struct $struct_name {
             $(
                 $name: exprType!($type),
             )*
         }
 
         #[allow(unused)]
-        impl<'a> $struct_name<'a> {
+        impl $struct_name {
             fn new(
                 $(
                     $name: exprType!($type)
@@ -36,7 +37,7 @@ macro_rules! build_struct {
             }
         }
 
-        impl<'a> Accept for $struct_name<'a> {
+        impl Accept for $struct_name {
             fn accept(&self, visitor: &dyn Visitor) -> ParseReturn {
                 visitor.$struct_name(self)
             }
@@ -45,8 +46,8 @@ macro_rules! build_struct {
 }
 
 macro_rules! exprType {
-    (expr) => (&'a dyn Accept);
-    ($type: ident) => (&'a $type);
+    (expr) => (Box<dyn Accept>);
+    ($type: ident) => ($type);
 }
 
 macro_rules! build_structs {
@@ -97,7 +98,7 @@ impl AstPrinter {
         if let ParseReturn::PP(value) = expr.accept(self) {
             value
         } else {
-            std::panic!("Not pretty print in ParseResult")
+            "Not PP in ParseResult".to_string()
         }
     }
 }
@@ -125,23 +126,18 @@ impl Visitor for AstPrinter {
 
 #[test]
 pub fn pretty_print_test() {
-    // Right now our structs don't take ownership of their arguments which means that
-    // creating them in the argument will cause them to be destroyed immediately
-    // afterward and then our pointer is no longer valid.  We REALLY need to fix this
-    // though I'm not entirely sure how.  Perhaps by passing down boxes of the dyn
-    // expressions?  Currently, though, I have to create variables to hold these values
-    // till the end of the test.
-
-    let minus_token = Token::new(&TokenType::Minus, &"-".to_string(), 1);
-    let star_token = Token::new(&TokenType::Star, &"*".to_string(), 1);
-
-    let num1 = TokenType::Number("123".to_string());
-    let num2 = TokenType::Number("45.67".to_string());
-    let num1_lit = literal::new(&num1);
-    let num2_lit = literal::new(&num2);
-    let grouping_expr = grouping::new(&num2_lit);
-    let unary_expr = unary::new(&minus_token, &num1_lit);
-    let expr = binary::new(&unary_expr, &star_token, &grouping_expr);
+    let num1_lit = literal::new(TokenType::Number("123".to_string()));
+    let num2_lit = literal::new(TokenType::Number("45.67".to_string()));
+    let grouping_expr = grouping::new(Box::new(num2_lit));
+    let unary_expr = unary::new(
+        Token::new(&TokenType::Minus, &"-".to_string(), 1),
+        Box::new(num1_lit),
+    );
+    let expr = binary::new(
+        Box::new(unary_expr),
+        Token::new(&TokenType::Star, &"*".to_string(), 1),
+        Box::new(grouping_expr),
+    );
 
     assert_eq!(
         "(* (- 123.00) (group 45.67))".to_string(),
