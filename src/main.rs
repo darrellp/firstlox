@@ -6,5 +6,5 @@ extern crate ascii;
 extern crate lazy_static;
 
 fn main() {
-    setup::compile();
+    setup::compile::compile();
 }
