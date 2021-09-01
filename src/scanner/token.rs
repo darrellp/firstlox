@@ -3,10 +3,10 @@ use scanner::token_type;
 use std::fmt;
 
 pub struct Token {
-    ttype: token_type::TokenType,
-    lexeme: String,
+    pub ttype: token_type::TokenType,
+    pub lexeme: String,
     // We can wrap up literal values in the TokenType enum
-    line: usize,
+    pub line: usize,
 }
 
 impl Token {
