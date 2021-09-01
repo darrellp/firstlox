@@ -1,5 +1,7 @@
+use crate::ascii::AsciiStr;
+use crate::lox_error;
 use crate::scanner;
-use crate::{ascii::AsciiStr, lox_error::LoxError, lox_error::LoxErrorList};
+use lox_error::{lox_error::LoxError, lox_error::LoxErrorList};
 use scanner::{token::Token, token_type::TokenType};
 pub struct Scanner<'a> {
     start: usize,

@@ -1,6 +1,6 @@
-use crate::lox_error::LoxError;
-use crate::lox_error::LoxErrorList;
+use crate::lox_error;
 use crate::scanner::scanner;
+use lox_error::{lox_error::LoxError, lox_error::LoxErrorList};
 use std::env;
 use std::fs;
 use std::io::{self, stdout, BufRead, Write};
