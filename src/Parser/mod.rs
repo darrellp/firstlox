@@ -112,9 +112,7 @@ impl Visitor for AstPrinter {
     }
     fn literal(&self, expr: &literal) -> ParseReturn {
         match &expr.value {
-            TokenType::Number(n) => {
-                ParseReturn::PP(format!("{:.2}", str::parse::<f64>(n).unwrap()))
-            }
+            TokenType::Number(n) => ParseReturn::PP(format!("{}", str::parse::<f64>(n).unwrap())),
             TokenType::String(s) => ParseReturn::PP(format!("{}", s)),
             _ => ParseReturn::PP("Non-Literal TokenType in Pretty Print".to_string()),
         }
@@ -140,7 +138,7 @@ pub fn pretty_print_test() {
     );
 
     assert_eq!(
-        "(* (- 123.00) (group 45.67))".to_string(),
+        "(* (- 123) (group 45.67))".to_string(),
         AstPrinter {}.pretty_print_value(&expr)
     );
 }
