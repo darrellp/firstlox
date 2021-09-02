@@ -24,7 +24,7 @@ macro_rules! build_struct {
 
         #[allow(unused)]
         impl $struct_name {
-            fn new(
+            pub fn new(
                 $(
                     $name: exprType!($type)
                 ),*

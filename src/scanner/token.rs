@@ -2,6 +2,7 @@ use crate::scanner;
 use scanner::token_type;
 use std::fmt;
 
+#[derive(Clone)]
 pub struct Token {
     pub ttype: token_type::TokenType,
     pub lexeme: String,
