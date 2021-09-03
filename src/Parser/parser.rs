@@ -188,4 +188,29 @@ impl Parser {
             None
         }
     }
+
+    // Synchronize the parser after an error
+    fn synchronize(&mut self) {
+        self.advance();
+
+        while (!self.is_at_end()) {
+            if (self.previous().ttype == TokenType::Semicolon) {
+                return;
+            }
+
+            let tt = &self.peek().ttype;
+            if (*tt == TokenType::Class
+                || *tt == TokenType::Fun
+                || *tt == TokenType::Var
+                || *tt == TokenType::For
+                || *tt == TokenType::If
+                || *tt == TokenType::While
+                || *tt == TokenType::Print
+                || *tt == TokenType::Return)
+            {
+                return;
+            }
+            self.advance();
+        }
+    }
 }
