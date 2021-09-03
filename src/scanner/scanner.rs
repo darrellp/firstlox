@@ -18,7 +18,7 @@ impl<'a> Scanner<'a> {
     pub fn new(program: &'a String) -> Result<Scanner<'a>, LoxError> {
         let test = AsciiStr::from_ascii(program);
         let ascii_str = match test {
-            Err(_) => return Err(LoxError::new_text_only("Program should be in ascii")),
+            Err(_) => return Err(LoxError::new_text_only(None, "Program should be in ascii")),
             Ok(a) => a,
         };
         let scanner = Scanner {
@@ -135,9 +135,9 @@ impl<'a> Scanner<'a> {
                 if Self::is_id_char(c) {
                     self.scan_identifier();
                 } else {
-                    self.errors.push(LoxError::new(
-                        self.line,
-                        "Unexpected character.".to_string(),
+                    self.errors.push(LoxError::new_text_only(
+                        Some(self.line),
+                        "Unexpected character.",
                     ));
                 }
             }
@@ -171,7 +171,7 @@ impl<'a> Scanner<'a> {
 
         if self.is_at_end() {
             self.errors
-                .push(LoxError::new_text_only("Unterminated string."));
+                .push(LoxError::new_text_only(None, "Unterminated string."));
             return;
         }
 

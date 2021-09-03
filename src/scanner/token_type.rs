@@ -55,6 +55,8 @@ pub enum TokenType {
     While,
 
     Eof,
+
+    Error,
 }
 
 const TYPE_STRING: &'static [(TokenType, &str)] = &[

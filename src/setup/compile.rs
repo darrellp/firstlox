@@ -9,7 +9,7 @@ pub fn compile() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() > 2 {
-        LoxError::new_text_only("Syntax: lox [file]").report();
+        LoxError::new_text_only(None, "Syntax: lox [file]").report();
     } else if args.len() == 2 {
         run_file(&args[1])
     } else {
@@ -21,7 +21,7 @@ fn run_file(file: &String) {
     let program_val = fs::read_to_string(file);
     match program_val {
         Err(_) => {
-            let error = LoxError::new_text_only(&format!("Couldn't read {}", file));
+            let error = LoxError::new_text_only(None, &format!("Couldn't read {}", file));
             error.report()
         }
         Ok(program) => {
@@ -37,8 +37,10 @@ fn run_prompt() {
         print!("> ");
         match stdout().flush() {
             Err(err) => {
-                let error =
-                    LoxError::new_text_only(&format!("Flushing problem: {:?}", err.to_string()));
+                let error = LoxError::new_text_only(
+                    None,
+                    &format!("Flushing problem: {:?}", err.to_string()),
+                );
                 error.report()
             }
             Ok(_) => (),
@@ -49,7 +51,7 @@ fn run_prompt() {
             Ok(0) => break,
             Err(err) => {
                 let error =
-                    LoxError::new_text_only(&format!("Input problem: {:?}", err.to_string()));
+                    LoxError::new_text_only(None, &format!("Input problem: {:?}", err.to_string()));
                 error.report();
                 continue;
             }

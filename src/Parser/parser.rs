@@ -1,13 +1,18 @@
 use crate::lox_error;
 use crate::scanner;
 use crate::{build_struct, build_structs, exprType};
-use lox_error::lox_error::LoxError;
+use lox_error::lox_error::{LoxError, LoxErrorList};
 use scanner::{token::Token, token_type::TokenType};
 
 // An AST always owns the entire tree below it so when the AST goes
 // out of scope the entire tree is destroyed
 type AST = Box<dyn Accept + 'static>;
 
+// ParseReturn is an enumeration to allow us to use Accept without generic
+// parameters which in turn would keep cause rustc to disallow dyn Accept.  Instead of
+// using a generic parameter to indicate our return type we always return
+// a ParseReturn and use the different enumerations to contain our various
+// return types.  Not quite as convenient but it has the advantage of working.
 #[allow(dead_code)]
 pub enum ParseReturn {
     PP(String),
@@ -20,6 +25,7 @@ build_structs! {
     literal : TokenType value;
     unary : Token operator, expr right;
 }
+
 pub trait Accept {
     fn accept(&self, visitor: &dyn Visitor) -> ParseReturn;
 }
@@ -28,9 +34,9 @@ pub trait Accept {
 struct Parser {
     tokens: Vec<Token>,
     current: usize,
+    errors: LoxErrorList,
 }
 
-#[allow(unused)]
 macro_rules! match_one_of {
     ($parser: ident, $($ttype:expr),*) => (
         {
@@ -47,7 +53,11 @@ macro_rules! match_one_of {
 #[allow(unused)]
 impl Parser {
     fn new(tokens: Vec<Token>) -> Self {
-        Parser { tokens, current: 0 }
+        Parser {
+            tokens,
+            current: 0,
+            errors: LoxErrorList::new(),
+        }
     }
 
     fn expression(&mut self) -> AST {
@@ -142,12 +152,20 @@ impl Parser {
         }
     }
 
-    fn consume(&mut self, tt: TokenType, msg: &str) -> Result<TokenType, LoxError> {
+    fn consume(&mut self, tt: TokenType, msg: &str) -> TokenType {
         if self.check(&tt) {
-            Ok(self.advance().unwrap().ttype)
+            self.advance().unwrap().ttype
         } else {
-            Err(LoxError::new_text_only(msg))
+            // Advance or don't advance?  Book throws.
+            self.errors
+                .push(LoxError::new_text_only(Some(self.peek().line), msg));
+            TokenType::Error
         }
+    }
+
+    fn err_on_token(&mut self, token: &Token, msg: &str) {
+        self.errors
+            .push(LoxError::new(token.clone(), msg.to_string()))
     }
 
     fn is_at_end(&self) -> bool {
