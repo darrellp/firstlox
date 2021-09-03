@@ -1,6 +1,9 @@
 use crate::lox_error;
+use crate::parser;
 use crate::scanner::scanner;
+
 use lox_error::{lox_error::LoxError, lox_error::LoxErrorList};
+use parser::{parser::Parser, pretty_print::AstPrinter};
 use std::env;
 use std::fs;
 use std::io::{self, stdout, BufRead, Write};
@@ -72,8 +75,15 @@ fn run(program: &String) -> LoxErrorList {
 
     scanner.scan_tokens();
 
-    for token in scanner.get_tokens() {
-        println!("{}", token)
+    // This kills scanner as it moves all the tokens out of it - they now belong to
+    // the parser
+    let mut parser = Parser::new(scanner.get_tokens());
+    let expr_opt = parser.parse();
+    match expr_opt {
+        None => parser.errors,
+        Some(ast) => {
+            println!("{}", AstPrinter {}.pretty_print_value(&*ast));
+            parser.errors
+        }
     }
-    scanner.get_errors()
 }

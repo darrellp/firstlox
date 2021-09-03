@@ -30,11 +30,10 @@ pub trait Accept {
     fn accept(&self, visitor: &dyn Visitor) -> ParseReturn;
 }
 
-#[allow(dead_code)]
-struct Parser {
+pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    errors: LoxErrorList,
+    pub errors: LoxErrorList,
 }
 
 macro_rules! match_one_of {
@@ -50,13 +49,21 @@ macro_rules! match_one_of {
     );
 }
 
-#[allow(unused)]
 impl Parser {
-    fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Parser {
             tokens,
             current: 0,
             errors: LoxErrorList::new(),
+        }
+    }
+
+    pub fn parse(&mut self) -> Option<AST> {
+        let result = self.expression();
+        if self.errors.len() == 0 {
+            Some(result)
+        } else {
+            None
         }
     }
 
@@ -163,6 +170,7 @@ impl Parser {
         }
     }
 
+    #[allow(unused)]
     fn err_on_token(&mut self, token: &Token, msg: &str) {
         self.errors
             .push(LoxError::new(token.clone(), msg.to_string()))
@@ -190,6 +198,7 @@ impl Parser {
     }
 
     // Synchronize the parser after an error
+    #[allow(unused)]
     fn synchronize(&mut self) {
         self.advance();
 

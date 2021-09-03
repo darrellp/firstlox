@@ -40,8 +40,8 @@ impl<'a> Scanner<'a> {
         self.add_token(Token::new(tt, &tt.to_stringslice().to_string(), self.line))
     }
 
-    pub fn get_tokens(&self) -> &Vec<Token> {
-        &self.tokens
+    pub fn get_tokens(self) -> Vec<Token> {
+        self.tokens
     }
 
     pub fn get_errors(&self) -> LoxErrorList {
