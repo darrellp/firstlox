@@ -1,13 +1,28 @@
 use crate::lox_error;
-use crate::parser;
 use crate::scanner;
+use crate::{build_struct, build_structs, exprType};
 use lox_error::lox_error::LoxError;
-use parser::struct_macros::{binary, grouping, literal, unary, Accept};
 use scanner::{token::Token, token_type::TokenType};
 
 // An AST always owns the entire tree below it so when the AST goes
 // out of scope the entire tree is destroyed
 type AST = Box<dyn Accept + 'static>;
+
+#[allow(dead_code)]
+pub enum ParseReturn {
+    PP(String),
+    AST,
+}
+
+build_structs! {
+    binary : expr left, Token operator, expr right;
+    grouping : expr expression;
+    literal : TokenType value;
+    unary : Token operator, expr right;
+}
+pub trait Accept {
+    fn accept(&self, visitor: &dyn Visitor) -> ParseReturn;
+}
 
 #[allow(dead_code)]
 struct Parser {
