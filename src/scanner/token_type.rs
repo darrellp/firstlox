@@ -30,9 +30,15 @@ pub enum TokenType {
 
     // Literals
     String(String),
-    // We store the string for the float in Number - converting to an f32
+    // We store the string for the float in Number - converting to an f64
     // causes TokenType to be unhashable which means we can't create our
-    // hash tables below.
+    // hash tables below.  I tried using the enum discriminant but get the
+    // error that they're not stable in consts so that doesn't work.
+    // Another idea would be to make a dummy hashing function for floats.
+    // There's no actual floats being hashed here anyway so it would just
+    // be to allow hashing on this data type.  In the end, using an f64
+    // would mean I'd lose the actual lexeme that led to the number so it's
+    // a bit of a disadvantage and I decided to stick with the string.
     Number(String),
     Identifier(String),
 
@@ -59,44 +65,49 @@ pub enum TokenType {
     Error,
 }
 
-const TYPE_STRING: &'static [(TokenType, &str)] = &[
-    (TokenType::LeftParen, "("),
-    (TokenType::RightParen, ")"),
-    (TokenType::LeftBrace, "["),
-    (TokenType::RightBrace, "]"),
-    (TokenType::Comma, ","),
-    (TokenType::Dot, "."),
-    (TokenType::Minus, "-"),
-    (TokenType::Plus, "+"),
-    (TokenType::Semicolon, ";"),
-    (TokenType::Slash, "/"),
-    (TokenType::Star, "*"),
-    (TokenType::Bang, "!"),
-    (TokenType::BangEqual, "!="),
-    (TokenType::Equal, "="),
-    (TokenType::EqualEqual, "=="),
-    (TokenType::Greater, ">"),
-    (TokenType::GreaterEqual, ">="),
-    (TokenType::Less, "<"),
-    (TokenType::LessEqual, "<="),
-    (TokenType::And, "and"),
-    (TokenType::Class, "class"),
-    (TokenType::Else, "else"),
-    (TokenType::False, "false"),
-    (TokenType::Fun, "fun"),
-    (TokenType::For, "for"),
-    (TokenType::If, "if"),
-    (TokenType::Nil, "nil"),
-    (TokenType::Or, "or"),
-    (TokenType::Print, "print"),
-    (TokenType::Return, "return"),
-    (TokenType::Super, "super"),
-    (TokenType::This, "this"),
-    (TokenType::True, "true"),
-    (TokenType::Var, "var"),
-    (TokenType::While, "while"),
-    (TokenType::Eof, "eof"),
-];
+macro_rules! tt_entry {
+    ($($type: tt: $val: expr) *) => (&[
+        $((TokenType::$type, $val),)*
+    ])
+}
+
+const TYPE_STRING: &'static [(TokenType, &str)] = tt_entry! {
+    LeftParen: "("
+    RightParen: ")"
+    LeftBrace: "{"
+    RightBrace: "}"
+    Comma: ","
+    Dot: "."
+    Minus: "-"
+    Plus: "+"
+    Semicolon: ";"
+    Slash: "/"
+    Star: "*"
+    Bang: "!"
+    BangEqual: "!="
+    Equal: "="
+    EqualEqual: "=="
+    Greater: ">"
+    GreaterEqual: ">="
+    Less: "<"
+    LessEqual: "<="
+    And: "and"
+    Class: "class"
+    Else: "else"
+    False: "false"
+    Fun: "fun"
+    For: "for"
+    If: "if"
+    Nil: "nil"
+    Or: "or"
+    Return: "return"
+    Super: "super"
+    This: "this"
+    True: "true"
+    Var: "var"
+    While: "while"
+    Eof: "eof"
+};
 
 lazy_static! {
     static ref MAP_TYPE_TO_STRING: HashMap<TokenType, &'static str> = {
