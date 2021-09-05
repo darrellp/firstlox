@@ -31,6 +31,15 @@ fn to_lox_type(tt: &TokenType) -> LoxType {
     }
 }
 
+fn to_lox_name(val: &LoxType) -> &'static str {
+    match val {
+        LoxType::Nil => "nil",
+        LoxType::Bool(_) => "bool",
+        LoxType::Number(_) => "number",
+        LoxType::String(_) => "string",
+    }
+}
+
 pub struct Evaluator {}
 
 impl Evaluator {
@@ -38,27 +47,39 @@ impl Evaluator {
         expr.accept(self)
     }
 
-    fn get_number(&self, pr: &ParseReturn) -> f64 {
+    fn get_number(&self, pr: &ParseReturn) -> Result<f64, LoxError> {
         match pr {
-            ParseReturn::Val(LoxType::Number(n)) => *n,
-            _ => 0f64, // Error Detection yet to be done...
+            ParseReturn::Val(LoxType::Number(n)) => Ok(*n),
+            ParseReturn::Val(val) => {
+                let err_msg = format!("Expected number but found {}", to_lox_name(&val));
+                Err(LoxError::new_text_only(None, &err_msg))
+            }
+            _ => panic!("No LoxType in eval"),
         }
     }
 
-    fn get_bool(&self, pr: &ParseReturn) -> bool {
+    fn get_bool(&self, pr: &ParseReturn) -> Result<bool, LoxError> {
         match pr {
-            ParseReturn::Val(LoxType::Bool(f)) => *f,
-            _ => false,
+            ParseReturn::Val(LoxType::Bool(f)) => Ok(*f),
+            ParseReturn::Val(val) => {
+                let err_msg = format!("Expected bool but found {}", to_lox_name(&val));
+                Err(LoxError::new_text_only(None, &err_msg))
+            }
+            _ => panic!("No LoxType in eval"),
         }
     }
 
-    fn get_string(&self, pr: &ParseReturn) -> String {
+    fn get_string(&self, pr: &ParseReturn) -> Result<String, LoxError> {
         match pr {
             // Now that we're actually evaluating we may have to eventually
             // mutate this string so we make a copy instead of using it
             // directly
-            ParseReturn::Val(LoxType::String(s)) => s.clone(),
-            _ => "".to_string(),
+            ParseReturn::Val(LoxType::String(s)) => Ok(s.clone()),
+            ParseReturn::Val(val) => {
+                let err_msg = format!("Expected string but found {}", to_lox_name(&val));
+                Err(LoxError::new_text_only(None, &err_msg))
+            }
+            _ => panic!("No LoxType in eval"),
         }
     }
 
@@ -87,57 +108,69 @@ impl Evaluator {
         }
     }
 
-    fn get_numeric_values(&self, left: &ParseReturn, right: &ParseReturn) -> (f64, f64) {
-        let left_val = self.get_number(&left);
-        let right_val = self.get_number(&right);
-        (left_val, right_val)
+    fn get_numeric_values(
+        &self,
+        left: &ParseReturn,
+        right: &ParseReturn,
+    ) -> Result<(f64, f64), LoxError> {
+        let left_val = self.get_number(&left)?;
+        let right_val = self.get_number(&right)?;
+        Ok((left_val, right_val))
     }
 
-    fn get_string_values(&self, left: &ParseReturn, right: &ParseReturn) -> (String, String) {
-        let left_val = self.get_string(&left);
-        let right_val = self.get_string(&right);
-        (left_val, right_val)
+    fn get_string_values(
+        &self,
+        left: &ParseReturn,
+        right: &ParseReturn,
+    ) -> Result<(String, String), LoxError> {
+        let left_val = self.get_string(&left)?;
+        let right_val = self.get_string(&right)?;
+        Ok((left_val, right_val))
     }
 
-    fn get_bool_values(&self, left: &ParseReturn, right: &ParseReturn) -> (bool, bool) {
-        let left_val = self.get_bool(&left);
-        let right_val = self.get_bool(&right);
-        (left_val, right_val)
+    fn get_bool_values(
+        &self,
+        left: &ParseReturn,
+        right: &ParseReturn,
+    ) -> Result<(bool, bool), LoxError> {
+        let left_val = self.get_bool(&left)?;
+        let right_val = self.get_bool(&right)?;
+        Ok((left_val, right_val))
     }
 
-    fn is_equal(&self, left: &ParseReturn, right: &ParseReturn) -> bool {
+    fn is_equal(&self, left: &ParseReturn, right: &ParseReturn) -> Result<bool, LoxError> {
         if self.is_numeric(left) {
             if !self.is_numeric(right) {
-                return false;
+                return Ok(false);
             }
-            let (left_val, right_val) = self.get_numeric_values(left, right);
-            return left_val == right_val;
+            let (left_val, right_val) = self.get_numeric_values(left, right)?;
+            return Ok(left_val == right_val);
         };
 
         if self.is_string(left) {
             if !self.is_string(right) {
-                return false;
+                return Ok(false);
             }
-            let (left_val, right_val) = self.get_string_values(left, right);
-            return left_val == right_val;
+            let (left_val, right_val) = self.get_string_values(left, right)?;
+            return Ok(left_val == right_val);
         }
 
         if self.is_bool(left) {
             if !self.is_bool(right) {
-                return false;
+                return Ok(false);
             }
-            let (left_val, right_val) = self.get_bool_values(left, right);
-            return left_val == right_val;
+            let (left_val, right_val) = self.get_bool_values(left, right)?;
+            return Ok(left_val == right_val);
         };
 
         let is_nil_left = self.is_nil(left);
         let is_nil_right = self.is_nil(right);
         if is_nil_left && is_nil_right {
-            return true;
+            return Ok(true);
         };
 
         if is_nil_left || is_nil_right {
-            return false;
+            return Ok(false);
         };
 
         // Should never reach here...
@@ -158,11 +191,11 @@ impl Visitor for Evaluator {
         let right = self.evaluate(&*expr.right)?;
         match expr.operator.ttype {
             TokenType::Minus => {
-                let right_val = self.get_number(&right);
+                let right_val = self.get_number(&right)?;
                 Ok(ParseReturn::Val(LoxType::Number(-right_val)))
             }
             TokenType::Bang => {
-                let right_val = self.get_bool(&right);
+                let right_val = self.get_bool(&right)?;
                 Ok(ParseReturn::Val(LoxType::Bool(!right_val)))
             }
             // Don't think the parser will allow this case to happen
@@ -176,26 +209,26 @@ impl Visitor for Evaluator {
         let right = self.evaluate(&*expr.right)?;
         match expr.operator.ttype {
             TokenType::Minus => {
-                let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                 Ok(ParseReturn::Val(LoxType::Number(left_val - right_val)))
             }
 
             TokenType::Slash => {
-                let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                 Ok(ParseReturn::Val(LoxType::Number(left_val / right_val)))
             }
 
             TokenType::Star => {
-                let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                 Ok(ParseReturn::Val(LoxType::Number(left_val * right_val)))
             }
 
             TokenType::Plus => {
                 if self.is_numeric(&left) && self.is_numeric(&right) {
-                    let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                    let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                     Ok(ParseReturn::Val(LoxType::Number(left_val + right_val)))
                 } else if self.is_string(&left) && self.is_string(&right) {
-                    let (left_val, right_val) = self.get_string_values(&left, &right);
+                    let (left_val, right_val) = self.get_string_values(&left, &right)?;
                     let concat = format!("{}{}", left_val, right_val);
                     Ok(ParseReturn::Val(LoxType::String(concat)))
                 } else {
@@ -204,32 +237,32 @@ impl Visitor for Evaluator {
             }
 
             TokenType::Greater => {
-                let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val > right_val)))
             }
 
             TokenType::Less => {
-                let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val < right_val)))
             }
 
             TokenType::GreaterEqual => {
-                let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val >= right_val)))
             }
 
             TokenType::LessEqual => {
-                let (left_val, right_val) = self.get_numeric_values(&left, &right);
+                let (left_val, right_val) = self.get_numeric_values(&left, &right)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val <= right_val)))
             }
 
             // We do follow IEEE 754 for NaN here.  The book does not.  Not going to "fix" this.
             TokenType::Equal => Ok(ParseReturn::Val(LoxType::Bool(
-                self.is_equal(&left, &right),
+                self.is_equal(&left, &right)?,
             ))),
 
             TokenType::BangEqual => Ok(ParseReturn::Val(LoxType::Bool(
-                !self.is_equal(&left, &right),
+                !self.is_equal(&left, &right)?,
             ))),
 
             _ => panic!("Unhandled operator in binary"),
