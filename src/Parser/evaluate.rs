@@ -2,6 +2,7 @@ use crate::lox_error;
 use crate::parser;
 use crate::scanner;
 
+use lox_error::lox_error::LoxError;
 use parser::parser::{binary, grouping, literal, unary, Accept, ParseReturn, Visitor};
 use scanner::token_type::TokenType;
 
@@ -30,10 +31,10 @@ fn to_lox_type(tt: &TokenType) -> LoxType {
     }
 }
 
-pub struct evaluator {}
+pub struct Evaluator {}
 
-impl evaluator {
-    pub fn evaluate(&self, expr: &(dyn Accept + 'static)) -> ParseReturn {
+impl Evaluator {
+    pub fn evaluate(&self, expr: &(dyn Accept + 'static)) -> Result<ParseReturn, LoxError> {
         expr.accept(self)
     }
 
@@ -144,89 +145,94 @@ impl evaluator {
     }
 }
 
-impl Visitor for evaluator {
-    fn literal(&self, expr: &literal) -> ParseReturn {
-        ParseReturn::Val(to_lox_type(&expr.value))
+impl Visitor for Evaluator {
+    fn literal(&self, expr: &literal) -> Result<ParseReturn, LoxError> {
+        Ok(ParseReturn::Val(to_lox_type(&expr.value)))
     }
 
-    fn grouping(&self, expr: &grouping) -> ParseReturn {
-        self.evaluate(&*expr.expression)
+    fn grouping(&self, expr: &grouping) -> Result<ParseReturn, LoxError> {
+        Ok(self.evaluate(&*expr.expression)?)
     }
 
-    fn unary(&self, expr: &unary) -> ParseReturn {
-        let right = self.evaluate(&*expr.right);
+    fn unary(&self, expr: &unary) -> Result<ParseReturn, LoxError> {
+        let right = self.evaluate(&*expr.right)?;
         match expr.operator.ttype {
             TokenType::Minus => {
                 let right_val = self.get_number(&right);
-                ParseReturn::Val(LoxType::Number(-right_val))
+                Ok(ParseReturn::Val(LoxType::Number(-right_val)))
             }
             TokenType::Bang => {
                 let right_val = self.get_bool(&right);
-                ParseReturn::Val(LoxType::Bool(!right_val))
+                Ok(ParseReturn::Val(LoxType::Bool(!right_val)))
             }
-            _ => ParseReturn::Val(LoxType::Number(0f64)), // Error Handling needed
+            // Don't think the parser will allow this case to happen
+            _ => panic!("Unary with invalid operation in Eval"),
         }
     }
 
     // copious error handling involved in here...
-    fn binary(&self, expr: &binary) -> ParseReturn {
-        let left = self.evaluate(&*expr.left);
-        let right = self.evaluate(&*expr.right);
+    fn binary(&self, expr: &binary) -> Result<ParseReturn, LoxError> {
+        let left = self.evaluate(&*expr.left)?;
+        let right = self.evaluate(&*expr.right)?;
         match expr.operator.ttype {
             TokenType::Minus => {
                 let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                ParseReturn::Val(LoxType::Number(left_val - right_val))
+                Ok(ParseReturn::Val(LoxType::Number(left_val - right_val)))
             }
 
             TokenType::Slash => {
                 let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                ParseReturn::Val(LoxType::Number(left_val / right_val))
+                Ok(ParseReturn::Val(LoxType::Number(left_val / right_val)))
             }
 
             TokenType::Star => {
                 let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                ParseReturn::Val(LoxType::Number(left_val * right_val))
+                Ok(ParseReturn::Val(LoxType::Number(left_val * right_val)))
             }
 
             TokenType::Plus => {
                 if self.is_numeric(&left) && self.is_numeric(&right) {
                     let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                    ParseReturn::Val(LoxType::Number(left_val + right_val))
+                    Ok(ParseReturn::Val(LoxType::Number(left_val + right_val)))
                 } else if self.is_string(&left) && self.is_string(&right) {
                     let (left_val, right_val) = self.get_string_values(&left, &right);
                     let concat = format!("{}{}", left_val, right_val);
-                    ParseReturn::Val(LoxType::String(concat))
+                    Ok(ParseReturn::Val(LoxType::String(concat)))
                 } else {
-                    ParseReturn::Val(LoxType::Number(0f64))
+                    Ok(ParseReturn::Val(LoxType::Number(0f64)))
                 }
             }
 
             TokenType::Greater => {
                 let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                ParseReturn::Val(LoxType::Bool(left_val > right_val))
+                Ok(ParseReturn::Val(LoxType::Bool(left_val > right_val)))
             }
 
             TokenType::Less => {
                 let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                ParseReturn::Val(LoxType::Bool(left_val < right_val))
+                Ok(ParseReturn::Val(LoxType::Bool(left_val < right_val)))
             }
 
             TokenType::GreaterEqual => {
                 let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                ParseReturn::Val(LoxType::Bool(left_val >= right_val))
+                Ok(ParseReturn::Val(LoxType::Bool(left_val >= right_val)))
             }
 
             TokenType::LessEqual => {
                 let (left_val, right_val) = self.get_numeric_values(&left, &right);
-                ParseReturn::Val(LoxType::Bool(left_val <= right_val))
+                Ok(ParseReturn::Val(LoxType::Bool(left_val <= right_val)))
             }
 
             // We do follow IEEE 754 for NaN here.  The book does not.  Not going to "fix" this.
-            TokenType::Equal => ParseReturn::Val(LoxType::Bool(self.is_equal(&left, &right))),
+            TokenType::Equal => Ok(ParseReturn::Val(LoxType::Bool(
+                self.is_equal(&left, &right),
+            ))),
 
-            TokenType::BangEqual => ParseReturn::Val(LoxType::Bool(!self.is_equal(&left, &right))),
+            TokenType::BangEqual => Ok(ParseReturn::Val(LoxType::Bool(
+                !self.is_equal(&left, &right),
+            ))),
 
-            _ => ParseReturn::Val(LoxType::Number(0f64)), // Error Handling needed
+            _ => panic!("Unhandled operator in binary"),
         }
     }
 }

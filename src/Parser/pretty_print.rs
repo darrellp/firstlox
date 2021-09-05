@@ -1,5 +1,8 @@
+use crate::lox_error;
 use crate::parser;
 use crate::scanner;
+
+use lox_error::lox_error::LoxError;
 use parser::parser::{binary, grouping, literal, unary, Accept, ParseReturn, Visitor};
 // Without the "unused" exemption rustc claims that token::Token is unused
 // although it is most certainly is used and will give an unresolved error if I remove
@@ -12,7 +15,7 @@ pub struct AstPrinter {}
 #[allow(unused)]
 impl AstPrinter {
     pub fn pretty_print_value(&self, expr: &dyn Accept) -> String {
-        if let ParseReturn::PP(value) = expr.accept(self) {
+        if let Result::Ok(ParseReturn::PP(value)) = expr.accept(self) {
             value
         } else {
             "Not PP in ParseResult".to_string()
@@ -27,28 +30,33 @@ macro_rules! parenthesize {
 
         $(
             result += " ";
-            result += &(if let ParseReturn::PP(val) = $args.accept($printer) { val } else {"ERROR".to_string()});
+            result += &(if let Ok(ParseReturn::PP(val)) = $args.accept($printer) { val } else {"ERROR".to_string()});
         )*
-        ParseReturn::PP(result + ")")
+        Ok(ParseReturn::PP(result + ")"))
     }
     );
 }
 
 impl Visitor for AstPrinter {
-    fn binary(&self, expr: &binary) -> ParseReturn {
+    fn binary(&self, expr: &binary) -> Result<ParseReturn, LoxError> {
         parenthesize!(self, &expr.operator.lexeme => expr.left, expr.right)
     }
-    fn grouping(&self, expr: &grouping) -> ParseReturn {
+    fn grouping(&self, expr: &grouping) -> Result<ParseReturn, LoxError> {
         parenthesize!(self, "group" => expr.expression)
     }
-    fn literal(&self, expr: &literal) -> ParseReturn {
+    fn literal(&self, expr: &literal) -> Result<ParseReturn, LoxError> {
         match &expr.value {
-            TokenType::Number(n) => ParseReturn::PP(format!("{}", str::parse::<f64>(n).unwrap())),
-            TokenType::String(s) => ParseReturn::PP(format!("{}", s)),
-            _ => ParseReturn::PP("Non-Literal TokenType in Pretty Print".to_string()),
+            TokenType::Number(n) => Ok(ParseReturn::PP(format!(
+                "{}",
+                str::parse::<f64>(n).unwrap()
+            ))),
+            TokenType::String(s) => Ok(ParseReturn::PP(format!("{}", s))),
+            _ => Ok(ParseReturn::PP(
+                "Non-Literal TokenType in Pretty Print".to_string(),
+            )),
         }
     }
-    fn unary(&self, expr: &unary) -> ParseReturn {
+    fn unary(&self, expr: &unary) -> Result<ParseReturn, LoxError> {
         parenthesize!(self, &expr.operator.lexeme => expr.right)
     }
 }

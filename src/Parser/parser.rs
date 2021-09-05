@@ -31,7 +31,7 @@ build_structs! {
 }
 
 pub trait Accept {
-    fn accept(&self, visitor: &dyn Visitor) -> ParseReturn;
+    fn accept(&self, visitor: &dyn Visitor) -> Result<ParseReturn, LoxError>;
 }
 
 pub struct Parser {
