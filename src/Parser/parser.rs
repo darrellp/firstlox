@@ -1,7 +1,10 @@
 use crate::lox_error;
+use crate::parser;
 use crate::scanner;
+
 use crate::{build_struct, build_structs, exprType};
 use lox_error::lox_error::{LoxError, LoxErrorList};
+use parser::evaluate;
 use scanner::{token::Token, token_type::TokenType};
 
 // An AST always owns the entire tree below it so when the AST goes
@@ -14,9 +17,10 @@ type AST = Box<dyn Accept + 'static>;
 // a ParseReturn and use the different enumerations to contain our various
 // return types.  Not quite as convenient but it has the advantage of working.
 #[allow(dead_code)]
+#[derive(PartialEq)]
 pub enum ParseReturn {
     PP(String),
-    AST,
+    Val(evaluate::LoxType),
 }
 
 build_structs! {
