@@ -84,7 +84,8 @@ fn run(program: &String) -> LoxErrorList {
     match expr_opt {
         None => parser.errors,
         Some(ast) => {
-            println!("{}", AstPrinter {}.pretty_print_value(&*ast).yellow());
+            let mut printer = AstPrinter {};
+            println!("{}", printer.pretty_print_value(&*ast).yellow());
             let mut errors = parser.errors;
             if errors.len() == 0 {
                 errors = Evaluator {}.interpret(&*ast);

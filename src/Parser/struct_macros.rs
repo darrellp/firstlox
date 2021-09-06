@@ -26,7 +26,7 @@ macro_rules! build_struct {
         }
 
         impl Accept for $struct_name {
-            fn accept(&self, visitor: &dyn Visitor) -> Result<ParseReturn, LoxError> {
+            fn accept(&self, visitor: &mut dyn Visitor) -> Result<ParseReturn, LoxError> {
                 visitor.$struct_name(self)
             }
         }
@@ -49,7 +49,7 @@ macro_rules! build_structs {
         // leave them with the same names as the classes they visit.
         pub trait Visitor {
             $(
-                fn $rhs_name(&self, expr: &$rhs_name) -> Result<ParseReturn, LoxError>;
+                fn $rhs_name(&mut self, expr: &$rhs_name) -> Result<ParseReturn, LoxError>;
             )*
         }
 

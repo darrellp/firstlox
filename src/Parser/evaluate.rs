@@ -56,11 +56,11 @@ impl LoxType {
 pub struct Evaluator {}
 
 impl Evaluator {
-    pub fn evaluate(&self, expr: &(dyn Accept + 'static)) -> Result<ParseReturn, LoxError> {
+    pub fn evaluate(&mut self, expr: &(dyn Accept + 'static)) -> Result<ParseReturn, LoxError> {
         expr.accept(self)
     }
 
-    pub fn interpret(&self, expr: &(dyn Accept + 'static)) -> LoxErrorList {
+    pub fn interpret(&mut self, expr: &(dyn Accept + 'static)) -> LoxErrorList {
         let eval_result = self.evaluate(expr);
         let mut ret = LoxErrorList::new();
 
@@ -82,15 +82,15 @@ impl Evaluator {
 }
 
 impl Visitor for Evaluator {
-    fn literal(&self, expr: &literal) -> Result<ParseReturn, LoxError> {
+    fn literal(&mut self, expr: &literal) -> Result<ParseReturn, LoxError> {
         Ok(ParseReturn::Val(to_lox_type(&expr.value)))
     }
 
-    fn grouping(&self, expr: &grouping) -> Result<ParseReturn, LoxError> {
+    fn grouping(&mut self, expr: &grouping) -> Result<ParseReturn, LoxError> {
         Ok(self.evaluate(&*expr.expression)?)
     }
 
-    fn unary(&self, expr: &unary) -> Result<ParseReturn, LoxError> {
+    fn unary(&mut self, expr: &unary) -> Result<ParseReturn, LoxError> {
         let right = self.evaluate(&*expr.right)?;
         match expr.operator.ttype {
             TokenType::Minus => {
@@ -107,7 +107,7 @@ impl Visitor for Evaluator {
     }
 
     // copious error handling involved in here...
-    fn binary(&self, expr: &binary) -> Result<ParseReturn, LoxError> {
+    fn binary(&mut self, expr: &binary) -> Result<ParseReturn, LoxError> {
         let left = self.evaluate(&*expr.left)?;
         let right = self.evaluate(&*expr.right)?;
         let token = &expr.operator;

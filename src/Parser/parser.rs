@@ -22,6 +22,8 @@ pub enum ParseReturn {
     Val(evaluate::LoxType),
 }
 
+// Putting these in their own module because we're gonna need more build_structs
+// elsewhere that have their own Accept and Visitor interfaces
 pub mod pstructs {
     use crate::lox_error::lox_error::LoxError;
     use crate::parser::parser::ParseReturn;
@@ -36,9 +38,10 @@ pub mod pstructs {
     }
 
     pub trait Accept {
-        fn accept(&self, visitor: &dyn Visitor) -> Result<ParseReturn, LoxError>;
+        fn accept(&self, visitor: &mut dyn Visitor) -> Result<ParseReturn, LoxError>;
     }
 }
+
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,

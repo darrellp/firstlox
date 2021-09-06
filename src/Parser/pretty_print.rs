@@ -16,7 +16,7 @@ pub struct AstPrinter {}
 
 #[allow(unused)]
 impl AstPrinter {
-    pub fn pretty_print_value(&self, expr: &dyn Accept) -> String {
+    pub fn pretty_print_value(&mut self, expr: &dyn Accept) -> String {
         if let Result::Ok(ParseReturn::PP(value)) = expr.accept(self) {
             value
         } else {
@@ -40,13 +40,13 @@ macro_rules! parenthesize {
 }
 
 impl Visitor for AstPrinter {
-    fn binary(&self, expr: &binary) -> Result<ParseReturn, LoxError> {
+    fn binary(&mut self, expr: &binary) -> Result<ParseReturn, LoxError> {
         parenthesize!(self, &expr.operator.lexeme => expr.left, expr.right)
     }
-    fn grouping(&self, expr: &grouping) -> Result<ParseReturn, LoxError> {
+    fn grouping(&mut self, expr: &grouping) -> Result<ParseReturn, LoxError> {
         parenthesize!(self, "group" => expr.expression)
     }
-    fn literal(&self, expr: &literal) -> Result<ParseReturn, LoxError> {
+    fn literal(&mut self, expr: &literal) -> Result<ParseReturn, LoxError> {
         match &expr.value {
             TokenType::Number(n) => Ok(ParseReturn::PP(format!(
                 "{}",
@@ -58,7 +58,7 @@ impl Visitor for AstPrinter {
             )),
         }
     }
-    fn unary(&self, expr: &unary) -> Result<ParseReturn, LoxError> {
+    fn unary(&mut self, expr: &unary) -> Result<ParseReturn, LoxError> {
         parenthesize!(self, &expr.operator.lexeme => expr.right)
     }
 }
