@@ -2,9 +2,9 @@ use crate::lox_error;
 use crate::parser;
 use crate::scanner;
 
-use lox_error::lox_error::LoxError;
+use lox_error::lox_error::{LoxError, LoxErrorList};
 use parser::parser::{binary, grouping, literal, unary, Accept, ParseReturn, Visitor};
-use scanner::token_type::TokenType;
+use scanner::{token::Token, token_type::TokenType};
 
 // I don't really see any reason I couldn't put the types of LoxType directly into
 // ParseReturn.  It would probably makes things both quicker and easier but it would
@@ -40,11 +40,42 @@ fn to_lox_name(val: &LoxType) -> &'static str {
     }
 }
 
+impl LoxType {
+    fn to_string(&self) -> String {
+        match self {
+            LoxType::Nil => "nil".to_string(),
+            LoxType::Bool(f) => format!("{}", f),
+            LoxType::Number(n) => format!("{}", n),
+            LoxType::String(s) => s.clone(),
+        }
+    }
+}
+
 pub struct Evaluator {}
 
 impl Evaluator {
     pub fn evaluate(&self, expr: &(dyn Accept + 'static)) -> Result<ParseReturn, LoxError> {
         expr.accept(self)
+    }
+
+    pub fn interpret(&self, expr: &(dyn Accept + 'static)) -> LoxErrorList {
+        let eval_result = self.evaluate(expr);
+        let mut ret = LoxErrorList::new();
+
+        match eval_result {
+            Err(l) => {
+                ret.push(l);
+            }
+            Ok(pr) => {
+                if let ParseReturn::Val(val) = pr {
+                    println!("{}", val.to_string());
+                } else {
+                    panic!("PR type other than Val from eval");
+                }
+            }
+        }
+
+        ret
     }
 }
 
@@ -61,11 +92,11 @@ impl Visitor for Evaluator {
         let right = self.evaluate(&*expr.right)?;
         match expr.operator.ttype {
             TokenType::Minus => {
-                let right_val = get_number(&right)?;
+                let right_val = get_number(&right, &expr.operator)?;
                 Ok(ParseReturn::Val(LoxType::Number(-right_val)))
             }
             TokenType::Bang => {
-                let right_val = get_bool(&right)?;
+                let right_val = get_bool(&right, &expr.operator)?;
                 Ok(ParseReturn::Val(LoxType::Bool(!right_val)))
             }
             // Don't think the parser will allow this case to happen
@@ -77,59 +108,64 @@ impl Visitor for Evaluator {
     fn binary(&self, expr: &binary) -> Result<ParseReturn, LoxError> {
         let left = self.evaluate(&*expr.left)?;
         let right = self.evaluate(&*expr.right)?;
+        let token = &expr.operator;
         match expr.operator.ttype {
             TokenType::Minus => {
-                let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                 Ok(ParseReturn::Val(LoxType::Number(left_val - right_val)))
             }
 
             TokenType::Slash => {
-                let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                 Ok(ParseReturn::Val(LoxType::Number(left_val / right_val)))
             }
 
             TokenType::Star => {
-                let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                 Ok(ParseReturn::Val(LoxType::Number(left_val * right_val)))
             }
 
             TokenType::Plus => {
                 if is_numeric(&left) && is_numeric(&right) {
-                    let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                    let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                     Ok(ParseReturn::Val(LoxType::Number(left_val + right_val)))
                 } else if is_string(&left) && is_string(&right) {
-                    let (left_val, right_val) = get_string_values(&left, &right)?;
+                    let (left_val, right_val) = get_string_values(&left, &right, token)?;
                     let concat = format!("{}{}", left_val, right_val);
                     Ok(ParseReturn::Val(LoxType::String(concat)))
                 } else {
-                    Ok(ParseReturn::Val(LoxType::Number(0f64)))
+                    Err(LoxError::new(token.clone(), "Mismatched types"))
                 }
             }
 
             TokenType::Greater => {
-                let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val > right_val)))
             }
 
             TokenType::Less => {
-                let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val < right_val)))
             }
 
             TokenType::GreaterEqual => {
-                let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val >= right_val)))
             }
 
             TokenType::LessEqual => {
-                let (left_val, right_val) = get_numeric_values(&left, &right)?;
+                let (left_val, right_val) = get_numeric_values(&left, &right, token)?;
                 Ok(ParseReturn::Val(LoxType::Bool(left_val <= right_val)))
             }
 
             // We do follow IEEE 754 for NaN here.  The book does not.  Not going to "fix" this.
-            TokenType::Equal => Ok(ParseReturn::Val(LoxType::Bool(is_equal(&left, &right)?))),
+            TokenType::EqualEqual => Ok(ParseReturn::Val(LoxType::Bool(is_equal(
+                &left, &right, token,
+            )?))),
 
-            TokenType::BangEqual => Ok(ParseReturn::Val(LoxType::Bool(!is_equal(&left, &right)?))),
+            TokenType::BangEqual => Ok(ParseReturn::Val(LoxType::Bool(!is_equal(
+                &left, &right, token,
+            )?))),
 
             _ => panic!("Unhandled operator in binary"),
         }
@@ -141,20 +177,69 @@ impl Visitor for Evaluator {
 // Functions to retrieve/manipulate LoxTypes, ParseResults and actual values
 //
 /////////////////////////////////////////////////////////////////////////////
-fn get_number(pr: &ParseReturn) -> Result<f64, LoxError> {
+fn get_number(pr: &ParseReturn, token: &Token) -> Result<f64, LoxError> {
     match pr {
         ParseReturn::Val(LoxType::Number(n)) => Ok(*n),
         ParseReturn::Val(val) => {
             let err_msg = format!("Expected number but found {}", to_lox_name(&val));
-            Err(LoxError::new_text_only(None, &err_msg))
+            Err(LoxError::new(token.clone(), &err_msg))
         }
         _ => panic!("No LoxType in eval"),
     }
 }
 
-fn get_numeric_values(left: &ParseReturn, right: &ParseReturn) -> Result<(f64, f64), LoxError> {
-    let left_val = get_number(&left)?;
-    let right_val = get_number(&right)?;
+fn get_bool(pr: &ParseReturn, token: &Token) -> Result<bool, LoxError> {
+    match pr {
+        ParseReturn::Val(LoxType::Bool(f)) => Ok(*f),
+        ParseReturn::Val(val) => {
+            let err_msg = format!("Expected bool but found {}", to_lox_name(&val));
+            Err(LoxError::new(token.clone(), &err_msg))
+        }
+        _ => panic!("No LoxType in eval"),
+    }
+}
+
+fn get_string(pr: &ParseReturn, token: &Token) -> Result<String, LoxError> {
+    match pr {
+        // Now that we're actually evaluating we may have to eventually
+        // mutate this string so we make a copy instead of using it
+        // directly
+        ParseReturn::Val(LoxType::String(s)) => Ok(s.clone()),
+        ParseReturn::Val(val) => {
+            let err_msg = format!("Expected string but found {}", to_lox_name(&val));
+            Err(LoxError::new(token.clone(), &err_msg))
+        }
+        _ => panic!("No LoxType in eval"),
+    }
+}
+
+fn get_numeric_values(
+    left: &ParseReturn,
+    right: &ParseReturn,
+    token: &Token,
+) -> Result<(f64, f64), LoxError> {
+    let left_val = get_number(&left, token)?;
+    let right_val = get_number(&right, token)?;
+    Ok((left_val, right_val))
+}
+
+fn get_string_values(
+    left: &ParseReturn,
+    right: &ParseReturn,
+    token: &Token,
+) -> Result<(String, String), LoxError> {
+    let left_val = get_string(&left, token)?;
+    let right_val = get_string(&right, token)?;
+    Ok((left_val, right_val))
+}
+
+fn get_bool_values(
+    left: &ParseReturn,
+    right: &ParseReturn,
+    token: &Token,
+) -> Result<(bool, bool), LoxError> {
+    let left_val = get_bool(&left, token)?;
+    let right_val = get_bool(&right, token)?;
     Ok((left_val, right_val))
 }
 
@@ -183,52 +268,12 @@ fn is_bool(pr: &ParseReturn) -> bool {
     }
 }
 
-fn get_bool(pr: &ParseReturn) -> Result<bool, LoxError> {
-    match pr {
-        ParseReturn::Val(LoxType::Bool(f)) => Ok(*f),
-        ParseReturn::Val(val) => {
-            let err_msg = format!("Expected bool but found {}", to_lox_name(&val));
-            Err(LoxError::new_text_only(None, &err_msg))
-        }
-        _ => panic!("No LoxType in eval"),
-    }
-}
-
-fn get_string(pr: &ParseReturn) -> Result<String, LoxError> {
-    match pr {
-        // Now that we're actually evaluating we may have to eventually
-        // mutate this string so we make a copy instead of using it
-        // directly
-        ParseReturn::Val(LoxType::String(s)) => Ok(s.clone()),
-        ParseReturn::Val(val) => {
-            let err_msg = format!("Expected string but found {}", to_lox_name(&val));
-            Err(LoxError::new_text_only(None, &err_msg))
-        }
-        _ => panic!("No LoxType in eval"),
-    }
-}
-
-fn get_string_values(
-    left: &ParseReturn,
-    right: &ParseReturn,
-) -> Result<(String, String), LoxError> {
-    let left_val = get_string(&left)?;
-    let right_val = get_string(&right)?;
-    Ok((left_val, right_val))
-}
-
-fn get_bool_values(left: &ParseReturn, right: &ParseReturn) -> Result<(bool, bool), LoxError> {
-    let left_val = get_bool(&left)?;
-    let right_val = get_bool(&right)?;
-    Ok((left_val, right_val))
-}
-
-fn is_equal(left: &ParseReturn, right: &ParseReturn) -> Result<bool, LoxError> {
+fn is_equal(left: &ParseReturn, right: &ParseReturn, token: &Token) -> Result<bool, LoxError> {
     if is_numeric(left) {
         if !is_numeric(right) {
             return Ok(false);
         }
-        let (left_val, right_val) = get_numeric_values(left, right)?;
+        let (left_val, right_val) = get_numeric_values(left, right, token)?;
         return Ok(left_val == right_val);
     };
 
@@ -236,7 +281,7 @@ fn is_equal(left: &ParseReturn, right: &ParseReturn) -> Result<bool, LoxError> {
         if !is_string(right) {
             return Ok(false);
         }
-        let (left_val, right_val) = get_string_values(left, right)?;
+        let (left_val, right_val) = get_string_values(left, right, token)?;
         return Ok(left_val == right_val);
     }
 
@@ -244,7 +289,7 @@ fn is_equal(left: &ParseReturn, right: &ParseReturn) -> Result<bool, LoxError> {
         if !is_bool(right) {
             return Ok(false);
         }
-        let (left_val, right_val) = get_bool_values(left, right)?;
+        let (left_val, right_val) = get_bool_values(left, right, token)?;
         return Ok(left_val == right_val);
     };
 

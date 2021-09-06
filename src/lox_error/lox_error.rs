@@ -11,11 +11,12 @@ pub struct LoxError {
 
 impl LoxError {
     #[allow(dead_code)]
-    pub fn new(token: Token, text: String) -> LoxError {
+    pub fn new(token: Token, text: &str) -> LoxError {
         LoxError {
             line_option: Some(token.line),
             token_option: Some(token),
-            text,
+            // I think I should probably ma
+            text: text.to_string(),
         }
     }
 
@@ -49,13 +50,13 @@ impl LoxError {
 #[test]
 pub fn error_test() {
     let token = Token::new(&TokenType::And, &"&".to_string(), 10);
-    let err = LoxError::new(token, "Test with normal token".to_string());
+    let err = LoxError::new(token, "Test with normal token");
     let text = err.report_msg();
 
     assert_eq!("10: at '&' - Test with normal token", text);
 
     let token = Token::new(&TokenType::Eof, &"".to_string(), 20);
-    let err = LoxError::new(token, "Test with EOF token".to_string());
+    let err = LoxError::new(token, "Test with EOF token");
     let text = err.report_msg();
 
     assert_eq!("20: at end - Test with EOF token", text);

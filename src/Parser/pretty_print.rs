@@ -50,7 +50,7 @@ impl Visitor for AstPrinter {
                 "{}",
                 str::parse::<f64>(n).unwrap()
             ))),
-            TokenType::String(s) => Ok(ParseReturn::PP(format!("{}", s))),
+            TokenType::String(s) => Ok(ParseReturn::PP(format!("\"{}\"", s))),
             _ => Ok(ParseReturn::PP(
                 "Non-Literal TokenType in Pretty Print".to_string(),
             )),

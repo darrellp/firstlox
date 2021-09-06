@@ -1,5 +1,7 @@
+use crate::colored::*;
 use crate::lox_error;
 use crate::parser;
+use crate::parser::evaluate::Evaluator;
 use crate::scanner::scanner;
 
 use lox_error::{lox_error::LoxError, lox_error::LoxErrorList};
@@ -82,8 +84,12 @@ fn run(program: &String) -> LoxErrorList {
     match expr_opt {
         None => parser.errors,
         Some(ast) => {
-            println!("{}", AstPrinter {}.pretty_print_value(&*ast));
-            parser.errors
+            println!("{}", AstPrinter {}.pretty_print_value(&*ast).yellow());
+            let mut errors = parser.errors;
+            if errors.len() == 0 {
+                errors = Evaluator {}.interpret(&*ast);
+            }
+            errors
         }
     }
 }

@@ -152,6 +152,9 @@ impl Parser {
             self.consume(TokenType::RightParen, "Expect ')' after expression.");
             return Box::new(grouping::new(expr));
         }
+
+        self.errors
+            .push(LoxError::new(self.peek().clone(), "Invalid Token"));
         Box::new(literal::new(TokenType::Eof))
     }
 
@@ -176,8 +179,7 @@ impl Parser {
 
     #[allow(unused)]
     fn err_on_token(&mut self, token: &Token, msg: &str) {
-        self.errors
-            .push(LoxError::new(token.clone(), msg.to_string()))
+        self.errors.push(LoxError::new(token.clone(), msg))
     }
 
     fn is_at_end(&self) -> bool {
