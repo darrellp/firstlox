@@ -3,7 +3,9 @@ use crate::parser;
 use crate::scanner;
 
 use lox_error::lox_error::{LoxError, LoxErrorList};
-use parser::parser::{binary, grouping, literal, unary, Accept, ParseReturn, Visitor};
+use parser::parser::pstructs::Accept;
+use parser::parser::pstructs::{binary, grouping, literal, unary, Visitor};
+use parser::parser::ParseReturn;
 use scanner::{token::Token, token_type::TokenType};
 
 // I don't really see any reason I couldn't put the types of LoxType directly into

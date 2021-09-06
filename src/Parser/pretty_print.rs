@@ -3,7 +3,9 @@ use crate::parser;
 use crate::scanner;
 
 use lox_error::lox_error::LoxError;
-use parser::parser::{binary, grouping, literal, unary, Accept, ParseReturn, Visitor};
+use parser::parser::pstructs::Accept;
+use parser::parser::pstructs::{binary, grouping, literal, unary, Visitor};
+use parser::parser::ParseReturn;
 // Without the "unused" exemption rustc claims that token::Token is unused
 // although it is most certainly is used and will give an unresolved error if I remove
 // it from the "use" statement.  Confusing.

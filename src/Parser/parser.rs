@@ -2,14 +2,13 @@ use crate::lox_error;
 use crate::parser;
 use crate::scanner;
 
-use crate::{build_struct, build_structs, exprType};
 use lox_error::lox_error::{LoxError, LoxErrorList};
 use parser::evaluate;
 use scanner::{token::Token, token_type::TokenType};
 
 // An AST always owns the entire tree below it so when the AST goes
 // out of scope the entire tree is destroyed
-type AST = Box<dyn Accept + 'static>;
+type AST = Box<dyn pstructs::Accept + 'static>;
 
 // ParseReturn is an enumeration to allow us to use Accept without generic
 // parameters which in turn would keep cause rustc to disallow dyn Accept.  Instead of
@@ -23,17 +22,23 @@ pub enum ParseReturn {
     Val(evaluate::LoxType),
 }
 
-build_structs! {
-    binary : expr left, Token operator, expr right;
-    grouping : expr expression;
-    literal : TokenType value;
-    unary : Token operator, expr right;
-}
+pub mod pstructs {
+    use crate::lox_error::lox_error::LoxError;
+    use crate::parser::parser::ParseReturn;
+    use crate::scanner::{token::Token, token_type::TokenType};
+    use crate::{build_struct, build_structs, exprType};
 
-pub trait Accept {
-    fn accept(&self, visitor: &dyn Visitor) -> Result<ParseReturn, LoxError>;
-}
+    build_structs! {
+        binary : expr left, Token operator, expr right;
+        grouping : expr expression;
+        literal : TokenType value;
+        unary : Token operator, expr right;
+    }
 
+    pub trait Accept {
+        fn accept(&self, visitor: &dyn Visitor) -> Result<ParseReturn, LoxError>;
+    }
+}
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
@@ -81,7 +86,7 @@ impl Parser {
         while match_one_of!(self, &TokenType::BangEqual, &TokenType::EqualEqual) {
             let operator = self.previous().clone();
             let right = self.comparison();
-            expr = Box::new(binary::new(expr, operator, right));
+            expr = Box::new(pstructs::binary::new(expr, operator, right));
         }
         expr
     }
@@ -98,7 +103,7 @@ impl Parser {
         ) {
             let operator = self.previous().clone();
             let right = self.term();
-            expr = Box::new(binary::new(expr, operator, right));
+            expr = Box::new(pstructs::binary::new(expr, operator, right));
         }
         expr
     }
@@ -109,7 +114,7 @@ impl Parser {
         while match_one_of!(self, &TokenType::Minus, &TokenType::Plus) {
             let operator = self.previous().clone();
             let right = self.factor();
-            expr = Box::new(binary::new(expr, operator, right));
+            expr = Box::new(pstructs::binary::new(expr, operator, right));
         }
         expr
     }
@@ -120,7 +125,7 @@ impl Parser {
         while match_one_of!(self, &TokenType::Slash, &TokenType::Star) {
             let operator = self.previous().clone();
             let right = self.unary();
-            expr = Box::new(binary::new(expr, operator, right));
+            expr = Box::new(pstructs::binary::new(expr, operator, right));
         }
         expr
     }
@@ -129,7 +134,7 @@ impl Parser {
         if match_one_of!(self, &TokenType::Bang, &TokenType::Minus) {
             let operator = self.previous().clone();
             let right = self.unary();
-            Box::new(unary::new(operator, right))
+            Box::new(pstructs::unary::new(operator, right))
         } else {
             self.primary()
         }
@@ -144,18 +149,18 @@ impl Parser {
             &TokenType::Number("".to_string()),
             &TokenType::String("".to_string())
         ) {
-            return Box::new(literal::new(self.previous().ttype.clone()));
+            return Box::new(pstructs::literal::new(self.previous().ttype.clone()));
         }
 
         if match_one_of!(self, &TokenType::LeftParen) {
             let expr = self.expression();
             self.consume(TokenType::RightParen, "Expect ')' after expression.");
-            return Box::new(grouping::new(expr));
+            return Box::new(pstructs::grouping::new(expr));
         }
 
         self.errors
             .push(LoxError::new(self.peek().clone(), "Invalid Token"));
-        Box::new(literal::new(TokenType::Eof))
+        Box::new(pstructs::literal::new(TokenType::Eof))
     }
 
     fn check(&self, tt: &TokenType) -> bool {
